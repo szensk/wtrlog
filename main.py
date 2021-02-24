@@ -8,10 +8,12 @@ import adafruit_bme280
 import asyncio
 from kasa import SmartPlug
 
+
 def createTables(c):
     with open("wlog.sql", "r") as f:
         content = f.read()
         c.executescript(content)
+
 
 i2c = busio.I2C(board.SCL, board.SDA)
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
@@ -33,6 +35,7 @@ LAST_HOUR = 60 * 60
 print("Connected to: " + plug.alias)
 if testMode:
     print("Running in test mode")
+
 
 def getIntegerTime():
     return int(time.time())
@@ -80,10 +83,12 @@ def transitionPlug(turnOn):
     asyncio.run(plug.update())
     recordTransition(turnOn, plug.alias, getIntegerTime())
 
+
 def fakeAverageHumitiy(time):
     fake = random.random() * 100
     print("Humidity: " + str(fake))
     return fake
+
 
 def main(threshold, averageFunc):
     while True:
@@ -92,8 +97,6 @@ def main(threshold, averageFunc):
         humidity = bme280.humidity
         pressure = bme280.pressure
 
-        #print("T: %0.1fC | H: %0.1f%% | P: %0.1fhPA" %
-        #      (temperature, humidity, pressure))
         recordReadings(temperature, humidity, pressure)
 
         avg = averageFunc(LAST_HOUR)
@@ -105,5 +108,6 @@ def main(threshold, averageFunc):
         dbconn.commit()
         asyncio.run(plug.update())
         time.sleep(10)
+
 
 main(25, fakeAverageHumitiy)
