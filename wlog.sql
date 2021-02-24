@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS Reading
 (
     Time INTEGER NOT NULL,
     Temperature REAL NOT NULL,
-    Humidty REAL NOT NULL,
+    Humidity REAL NOT NULL,
     Pressure REAL NOT NULL,
     Source TEXT
 );

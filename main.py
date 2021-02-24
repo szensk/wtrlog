@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import sys
 import sqlite3
 import time
@@ -110,4 +111,4 @@ def main(threshold, averageFunc):
         time.sleep(10)
 
 
-main(25, fakeAverageHumitiy)
+main(25, getAverageHumidity)
