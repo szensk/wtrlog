@@ -64,7 +64,7 @@ def canTransition(timeRange):
     cur.execute(
         'SELECT Time, State, Device FROM Switch WHERE Time > ? AND Device = ?', (ts, plug.alias))
     transitions = cur.fetchall()
-    return transitions.count == 0
+    return len(transitions) == 0
 
 
 def transitionPlug(turnOn):
