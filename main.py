@@ -77,12 +77,15 @@ def transitionPlug(turnOn):
         return
 
     if not canTransition(LAST_HOUR):
-        print("Unable to transition")
+        print("Unable to transition: too soon.")
         return
 
-    asyncio.run(plug.turn_on() if turnOn else plug.turn_off())
-    asyncio.run(plug.update())
-    recordTransition(turnOn, plug.alias, getIntegerTime())
+    try:
+        asyncio.run(plug.turn_on() if turnOn else plug.turn_off())
+        asyncio.run(plug.update())
+        recordTransition(turnOn, plug.alias, getIntegerTime())
+    except:
+        print("Unable to transition: error.")
 
 
 def fakeAverageHumitiy(time):
@@ -93,22 +96,26 @@ def fakeAverageHumitiy(time):
 
 def main(threshold, averageFunc):
     while True:
-        plugIsOn = plug.is_on
-        temperature = bme280.temperature
-        humidity = bme280.humidity
-        pressure = bme280.pressure
+        try:
+            plugIsOn = plug.is_on
+            temperature = bme280.temperature
+            humidity = bme280.humidity
+            pressure = bme280.pressure
 
-        recordReadings(temperature, humidity, pressure)
+            recordReadings(temperature, humidity, pressure)
 
-        avg = averageFunc(LAST_HOUR)
-        if (plugIsOn and avg > threshold):
-            transitionPlug(False)
-        elif (not plugIsOn and avg <= threshold):
-            transitionPlug(True)
+            avg = averageFunc(LAST_HOUR)
+            if (plugIsOn and avg > threshold):
+                transitionPlug(False)
+            elif (not plugIsOn and avg <= threshold):
+                transitionPlug(True)
 
-        dbconn.commit()
-        asyncio.run(plug.update())
-        time.sleep(10)
+            dbconn.commit()
+            asyncio.run(plug.update())
+        except:
+            print("Unhandled error")
+        finally:
+            time.sleep(10)
 
 
 main(25, getAverageHumidity)
