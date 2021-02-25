@@ -1,0 +1,16 @@
+[Unit]
+Description=Weather Daemon
+After=network-online.target
+Wants=network-online.target systemd-networkd-wait-online.service
+
+StartLimitIntervalSec=500
+StartLimitBurst=5
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+
+ExecStart=/usr/local/bin/wtrd
+
+[Install]
+WantedBy=multi-user.target
