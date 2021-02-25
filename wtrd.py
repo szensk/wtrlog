@@ -11,7 +11,7 @@ from kasa import SmartPlug
 
 
 def createTables(c):
-    with open("wlog.sql", "r") as f:
+    with open("wtrd.sql", "r") as f:
         content = f.read()
         c.executescript(content)
 
@@ -19,15 +19,16 @@ def createTables(c):
 i2c = busio.I2C(board.SCL, board.SDA)
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
 
+args = [arg for arg in sys.argv[1:] if not arg.startswith("-")]
 opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
 testMode = "-t" in opts
 
-# open sqlite db
+# setup sqlite database
 dbconn = sqlite3.connect('wtr.db')
 dbc = dbconn.cursor()
 createTables(dbc)
 
-# connect to kasa devices
+# connect to kasa devices, initial update to receive state information
 plug = SmartPlug("kasa1.lan")
 asyncio.run(plug.update())
 
@@ -62,9 +63,10 @@ def getAverageHumidity(timeRange):
     return average[0][0]
 
 
-def canTransition(timeRange):
+# Prevent turning on or off the switch if it already turned on or off in the last timeInSeconds seconds
+def canTransition(timeInSeconds):
     cur = dbconn.cursor()
-    ts = getIntegerTime() - timeRange
+    ts = getIntegerTime() - timeInSeconds
     cur.execute(
         'SELECT Time, State, Device FROM Switch WHERE Time > ? AND Device = ?', (ts, plug.alias))
     transitions = cur.fetchall()
@@ -88,12 +90,6 @@ def transitionPlug(turnOn):
         print("Unable to transition: error.")
 
 
-def fakeAverageHumitiy(time):
-    fake = random.random() * 100
-    print("Humidity: " + str(fake))
-    return fake
-
-
 def main(threshold, averageFunc):
     while True:
         try:
@@ -105,9 +101,9 @@ def main(threshold, averageFunc):
             recordReadings(temperature, humidity, pressure)
 
             avg = averageFunc(LAST_HOUR)
-            if (plugIsOn and avg > threshold):
+            if (plugIsOn and avg < threshold):
                 transitionPlug(False)
-            elif (not plugIsOn and avg <= threshold):
+            elif (not plugIsOn and avg >= threshold):
                 transitionPlug(True)
 
             dbconn.commit()
@@ -118,4 +114,8 @@ def main(threshold, averageFunc):
             time.sleep(10)
 
 
-main(25, getAverageHumidity)
+humidityPoint = 50
+if len(args) > 0:
+    humidityPoint = int(args[0])
+
+main(humidityPoint, getAverageHumidity)

@@ -8,11 +8,11 @@ StartLimitBurst=5
 
 [Service]
 Restart=on-failure
-RestartSec=5s
-ExecStart=daemonize -v -o /home/pi/wtrlog/wtrd.log -p /home/pi/wtrlog/wtrd.pid -c /home/pi/wtrlog -e /$
+RestartSec=60s
+ExecStart=daemonize -o /home/pi/wtrlog/wtrd.log -p /home/pi/wtrlog/wtrd.pid -c /home/pi/wtrlog -e /home/pi/wtrlog/wtrd.err /home/pi/wtrlog/wtrd.py
 WorkingDirectory=/home/pi/wtrlog
-#User=pi
-#Group=pi
+User=pi
+Group=pi
 Type=forking
 
 [Install]
