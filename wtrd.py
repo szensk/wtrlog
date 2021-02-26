@@ -59,7 +59,6 @@ def getAverageHumidity(timeRange):
     cur.execute(
         'SELECT AVG(Humidity) FROM Reading WHERE Time > ? AND Source = ?', (ts, plug.alias))
     average = cur.fetchall()
-    print(average)
     return average[0][0]
 
 
