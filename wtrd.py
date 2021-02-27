@@ -9,6 +9,11 @@ import adafruit_bme280
 import asyncio
 from kasa import SmartPlug
 
+PLUG_HOST = "kasa1.lan"
+DB_NAME = "wtr.db"
+LAST_HOUR = 60 * 60
+SLEEP_SECONDS = 10
+
 
 def createTables(c):
     with open("wtrd.sql", "r") as f:
@@ -16,6 +21,7 @@ def createTables(c):
         c.executescript(content)
 
 
+# bme 280 setup
 i2c = busio.I2C(board.SCL, board.SDA)
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
 
@@ -24,15 +30,13 @@ opts = [opt for opt in sys.argv[1:] if opt.startswith("-")]
 testMode = "-t" in opts
 
 # setup sqlite database
-dbconn = sqlite3.connect('wtr.db')
+dbconn = sqlite3.connect(DB_NAME)
 dbc = dbconn.cursor()
 createTables(dbc)
 
 # connect to kasa devices, initial update to receive state information
-plug = SmartPlug("kasa1.lan")
+plug = SmartPlug(PLUG_HOST)
 asyncio.run(plug.update())
-
-LAST_HOUR = 60 * 60
 
 print("Connected to: " + plug.alias)
 if testMode:
@@ -53,6 +57,15 @@ def recordTransition(state, alias, stamp):
     dbc.execute('INSERT INTO Switch VALUES (?, ?, ?)', (stamp, state, alias))
 
 
+def getReadingCount(timeRange):
+    cur = dbconn.cursor()
+    ts = getIntegerTime() - timeRange
+    cur.execute(
+        'SELECT COUNT(*) FROM Reading WHERE Time > ? AND Source = ?', (ts, plug.alias))
+    average = cur.fetchall()
+    return average[0][0]
+
+
 def getAverageHumidity(timeRange):
     cur = dbconn.cursor()
     ts = getIntegerTime() - timeRange
@@ -69,7 +82,8 @@ def canTransition(timeInSeconds):
     cur.execute(
         'SELECT Time, State, Device FROM Switch WHERE Time > ? AND Device = ?', (ts, plug.alias))
     transitions = cur.fetchall()
-    return len(transitions) == 0
+    readings = getReadingCount(timeInSeconds)
+    return len(transitions) == 0 and readings > (LAST_HOUR/SLEEP_SECONDS/2)
 
 
 def transitionPlug(turnOn):
@@ -110,7 +124,7 @@ def main(threshold, averageFunc):
         except:
             print("Unhandled error")
         finally:
-            time.sleep(10)
+            time.sleep(SLEEP_SECONDS)
 
 
 humidityPoint = 50
