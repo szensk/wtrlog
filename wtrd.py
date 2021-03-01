@@ -12,7 +12,7 @@ from kasa import SmartPlug
 PLUG_HOST = "kasa1.lan"
 DB_NAME = "wtr.db"
 LAST_HOUR = 60 * 60
-SLEEP_SECONDS = 10
+SLEEP_SECONDS = 60
 
 
 def createTables(c):
