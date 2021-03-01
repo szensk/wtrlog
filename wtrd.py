@@ -24,8 +24,8 @@ def createTables(c):
 def createOrGetSource(c, alias):
     cur = dbconn.cursor()
     cur.execute(
-        'INSERT OR IGNORE INTO Source(SourceName) VALUES (?)', (alias))
-    cur.execute('SELECT SourceId FROM Source WHERE SourceName = ?', (alias))
+        'INSERT OR IGNORE INTO Source(SourceName) VALUES (?)', (alias,))
+    cur.execute('SELECT SourceId FROM Source WHERE SourceName = ?', (alias,))
     ids = cur.fetchall()
     return ids[0][0]
 
@@ -47,7 +47,7 @@ createTables(dbc)
 plug = SmartPlug(PLUG_HOST)
 asyncio.run(plug.update())
 
-source = createOrGetSource(dbc, plug.alias)
+source = createOrGetSource(dbc, str(plug.alias))
 
 print("Connected to: " + plug.alias)
 if testMode:
