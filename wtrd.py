@@ -21,6 +21,13 @@ def createTables(c):
         c.executescript(content)
 
 
+def createOrGetSource(c):
+    cur = dbconn.cursor()
+    cur.execute('INSERT INTO Source(SourceName) SELECT ? WHERE NOT EXISTS(SELECT 1 FROM Source WHERE SourceName = ?', (plug.alias, plug.alias))
+    cur.execute('SELECT SourceId FROM Source WHERE SourceName = ?', (plug.alias))
+    ids = cur.fetchall()
+    return ids[0][0]
+
 # bme 280 setup
 i2c = busio.I2C(board.SCL, board.SDA)
 bme280 = adafruit_bme280.Adafruit_BME280_I2C(i2c)
@@ -33,6 +40,7 @@ testMode = "-t" in opts
 dbconn = sqlite3.connect(DB_NAME)
 dbc = dbconn.cursor()
 createTables(dbc)
+source = createOrGetSource(dbc)
 
 # connect to kasa devices, initial update to receive state information
 plug = SmartPlug(PLUG_HOST)
@@ -50,18 +58,18 @@ def getIntegerTime():
 def recordReadings(temperature, humidity, pressure):
     ts = getIntegerTime()
     dbc.execute('INSERT INTO Reading VALUES (?, ?, ?, ?, ?)',
-                (ts, temperature, humidity, pressure, plug.alias))
+                (ts, temperature, humidity, pressure, source))
 
 
-def recordTransition(state, alias, stamp):
-    dbc.execute('INSERT INTO Switch VALUES (?, ?, ?)', (stamp, state, alias))
+def recordTransition(state, stamp):
+    dbc.execute('INSERT INTO Switch VALUES (?, ?, ?)', (stamp, state, source))
 
 
 def getReadingCount(timeRange):
     cur = dbconn.cursor()
     ts = getIntegerTime() - timeRange
     cur.execute(
-        'SELECT COUNT(*) FROM Reading WHERE Time > ? AND Source = ?', (ts, plug.alias))
+        'SELECT COUNT(*) FROM Reading WHERE Time > ? AND SourceId = ?', (ts, source))
     average = cur.fetchall()
     return average[0][0]
 
@@ -70,7 +78,7 @@ def getAverageHumidity(timeRange):
     cur = dbconn.cursor()
     ts = getIntegerTime() - timeRange
     cur.execute(
-        'SELECT AVG(Humidity) FROM Reading WHERE Time > ? AND Source = ?', (ts, plug.alias))
+        'SELECT AVG(Humidity) FROM Reading WHERE Time > ? AND SourceId = ?', (ts, source))
     average = cur.fetchall()
     return average[0][0]
 
@@ -80,7 +88,7 @@ def canTransition(timeInSeconds):
     cur = dbconn.cursor()
     ts = getIntegerTime() - timeInSeconds
     cur.execute(
-        'SELECT Time, State, Device FROM Switch WHERE Time > ? AND Device = ?', (ts, plug.alias))
+        'SELECT Time, State, SourceId FROM Switch WHERE Time > ? AND SourceId = ?', (ts, source))
     transitions = cur.fetchall()
     readings = getReadingCount(timeInSeconds)
     return len(transitions) == 0 and readings > (LAST_HOUR/SLEEP_SECONDS/2)
@@ -98,7 +106,7 @@ def transitionPlug(turnOn):
     try:
         asyncio.run(plug.turn_on() if turnOn else plug.turn_off())
         asyncio.run(plug.update())
-        recordTransition(turnOn, plug.alias, getIntegerTime())
+        recordTransition(turnOn, getIntegerTime())
     except:
         print("Unable to transition: error.")
 
