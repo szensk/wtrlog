@@ -21,12 +21,14 @@ def createTables(c):
         c.executescript(content)
 
 
-def createOrGetSource(c):
+def createOrGetSource(c, alias):
     cur = dbconn.cursor()
-    cur.execute('INSERT INTO Source(SourceName) SELECT ? WHERE NOT EXISTS(SELECT 1 FROM Source WHERE SourceName = ?', (plug.alias, plug.alias))
-    cur.execute('SELECT SourceId FROM Source WHERE SourceName = ?', (plug.alias))
+    cur.execute(
+        'INSERT OR IGNORE INTO Source(SourceName) VALUES (?)', (alias))
+    cur.execute('SELECT SourceId FROM Source WHERE SourceName = ?', (alias))
     ids = cur.fetchall()
     return ids[0][0]
+
 
 # bme 280 setup
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -40,11 +42,12 @@ testMode = "-t" in opts
 dbconn = sqlite3.connect(DB_NAME)
 dbc = dbconn.cursor()
 createTables(dbc)
-source = createOrGetSource(dbc)
 
 # connect to kasa devices, initial update to receive state information
 plug = SmartPlug(PLUG_HOST)
 asyncio.run(plug.update())
+
+source = createOrGetSource(dbc, plug.alias)
 
 print("Connected to: " + plug.alias)
 if testMode:

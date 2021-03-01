@@ -23,3 +23,4 @@ CREATE TABLE IF NOT EXISTS Switch
 );
 
 CREATE INDEX IF NOT EXISTS TimeSourceHumidity ON Reading(SourceId, Time, Humidity);
+CREATE UNIQUE INDEX IF NOT EXISTS SourceName ON Source(SourceName);
