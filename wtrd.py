@@ -9,6 +9,7 @@ import adafruit_bme280
 import asyncio
 from kasa import SmartPlug
 
+PLUG = False
 PLUG_HOST = "kasa1.lan"
 DB_NAME = "wtr.db"
 LAST_HOUR = 60 * 60
@@ -44,12 +45,14 @@ dbc = dbconn.cursor()
 createTables(dbc)
 
 # connect to kasa devices, initial update to receive state information
-plug = SmartPlug(PLUG_HOST)
-asyncio.run(plug.update())
+if PLUG:
+    plug = SmartPlug(PLUG_HOST)
+    asyncio.run(plug.update())
 
-source = createOrGetSource(dbc, str(plug.alias))
+    source = createOrGetSource(dbc, str(plug.alias))
 
-print("Connected to: " + plug.alias)
+    print("Connected to: " + plug.alias)
+
 if testMode:
     print("Running in test mode")
 
@@ -107,9 +110,10 @@ def transitionPlug(turnOn):
         return
 
     try:
-        asyncio.run(plug.turn_on() if turnOn else plug.turn_off())
-        asyncio.run(plug.update())
-        recordTransition(turnOn, getIntegerTime())
+        if PLUG:
+            asyncio.run(plug.turn_on() if turnOn else plug.turn_off())
+            asyncio.run(plug.update())
+            recordTransition(turnOn, getIntegerTime())
     except:
         print("Unable to transition: error.")
 
@@ -117,7 +121,10 @@ def transitionPlug(turnOn):
 def main(threshold, averageFunc):
     while True:
         try:
-            plugIsOn = plug.is_on
+            if PLUG:
+                plugIsOn = plug.is_on
+            else:
+                plugIsOn = True
             temperature = bme280.temperature
             humidity = bme280.humidity
             pressure = bme280.pressure
@@ -125,9 +132,9 @@ def main(threshold, averageFunc):
             recordReadings(temperature, humidity, pressure)
 
             avg = averageFunc(LAST_HOUR)
-            if (plugIsOn and avg < threshold):
+            if (PLUG and plugIsOn and avg < threshold):
                 transitionPlug(False)
-            elif (not plugIsOn and avg >= threshold):
+            elif (PLUG and not plugIsOn and avg >= threshold):
                 transitionPlug(True)
 
             dbconn.commit()
